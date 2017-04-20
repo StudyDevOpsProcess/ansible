@@ -1,0 +1,84 @@
+---
+#
+# Import global and per-service configuration for a specific environment
+#
+- include_vars: "{{ playbook_dir }}/vars/{{ GXI_ENVIRONMENT }}/environment_common.yml"
+- include_vars: "{{ playbook_dir }}/vars/{{ GXI_ENVIRONMENT }}/{{ service_name }}.yml"
+- include_vars: /opt/ansible-cred/cred.yml
+
+- debug:
+    msg: "************ Deploying {{ service_name }} to {% filter upper %}{{ GXI_ENVIRONMENT }}{% endfilter %} ************"
+
+# Login to artifactory
+- name: Docker login
+  docker_login:
+    registry: "{{artifactory_host}}"
+    username: "{{un}}"
+    password: "{{pw}}"
+    email: "{{em}}"
+
+- name: Determine if service '{{ service_name }}' already exists
+  shell: docker service ps {{ service_name }}
+  register: serviceExists
+  failed_when: false
+  changed_when: false
+
+# service_mode is 'create' if '{{ service_name }}' does not exist
+# service_mode is 'update' if '{{ service_name }}' does exist
+- name: Set action as {% if serviceExists.stdout_lines|count > 0 %}update{% else %}create{% endif %}
+  set_fact:
+    service_mode: >-
+      {% if serviceExists.stdout_lines|count > 0 %}update{% else %}create{% endif %}
+
+# Override the image tag to deploy:
+# If SERVICE_TAG is defined, and has a real value (that is, not None), use it!
+# Otherwise, use the value defined as service.tag in {{ service_name }}.yml
+- name: Set value of {{ service_name }} tag
+  set_fact:
+    service_tag: >-
+      {% if SERVICE_TAG is defined and SERVICE_TAG %}{{ SERVICE_TAG }}{% else %}{{ service.tag }}{% endif %}
+
+# We are dynamically building the `docker service` cli command
+# `docker service create` and `docker service update` have mutually exclusive cli options
+
+## Plain english explanation of the docker service command generator:
+
+# If we are doing a 'docker service create',
+# generate a command as defined by variable complete_service_definition
+
+# If we are doing a 'docker service update',
+# The docker_service_options() filter will modify variable complete_service_definition
+# so it will be compatible with the `docker service update` interface
+
+## The docker_service_options() filter changes the following docker service options if we are doing an update:
+# ------------------------------------------------------------------------------------ #
+# `docker service create`           | `docker service update`                          #
+# ------------------------------------------------------------------------------------ #
+# '--constraint'                    -> '--constraint-add'                              #
+# '--container-label'               -> '--container-label-add'                         #
+# '--env'                           -> '--env-add'                                     #
+# (IMAGE provided as arg)           -> '--image {{ service.image }}:{{ service_tag }}' #
+# '--label'                         -> '--label-add'                                   #
+# '--mount'                         -> '--mount-add'                                   #
+# '--network'                       -> (removed)                                       #
+# '--publish'                       -> '--publish-add'                                 #
+# ------------------------------------------------------------------------------------ #
+## While it is possible to delete values with 'docker service update', we make no attempt to do so.
+
+- name: Generate docker service {{ service_mode }} command
+  command: >-
+      docker service {{ service_mode }}
+      {% for opt, value in service.docker_options.items() | docker_service_options( service_mode, service.image, service_tag )%}
+      {% if value | is_list %}
+      {% for v in value %}
+      --{{ opt }} {{ v | quote}}
+      {% endfor %}
+      {% else %}
+      --{{ opt }} {{ value }}
+      {% endif %}
+      {% endfor %}
+      {% if service_mode == 'create' %}
+      {{ service.image }}:{{ service_tag }}
+      {% else %}
+      {{ service_name }}
+      {% endif %}

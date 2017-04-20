@@ -1,0 +1,13 @@
+---
+- hosts: Localhost
+  vars_files:
+    - "{{ playbook_dir }}/vars/{{ ENVIRONMENT }}/environment_common.yml"
+
+  environment:
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: /home/sa-ansible/ucp-client-bundles/{{ ENVIRONMENT }}
+    DOCKER_HOST: "{{ DOCKER_UCP_HOST }}"
+
+  name: Deploy docker image
+  roles:
+    - { role: 'deploy_docker_svc', service_name: "{{ SERVICE_NAME }}" }

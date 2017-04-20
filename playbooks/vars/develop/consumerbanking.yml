@@ -1,0 +1,27 @@
+---
+service:
+  image: artifactory.autorunops.com:8080/consumerBanking
+  tag: latest
+  docker_options:
+    name: consumerBanking
+    label:
+#      - label com.df.distribute=true \
+#      - label com.df.notify=true \
+#      - label com.df.port=7214 \
+      - label com.df.serviceDomain=consumerBanking-develop.autorunops.com \
+      - label com.df.servicePath=/ \
+      - label env=develop \
+      - com.docker.ucp.access.label=awesome
+    container-label:
+      - com.docker.ucp.access.label=awesome
+    replicas: 1
+    network:
+      - proxy
+      - backend
+    publish:
+      - 7000:7000
+    with-registry-auth:
+    constraint:
+      - node.role==worker
+    restart-condition: on-failure
+    restart-max-attempts: 1
