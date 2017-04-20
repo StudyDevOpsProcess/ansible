@@ -1,4 +1,4 @@
----
+--- 
 service:
   image: artifactory.autorunops.com:8080/consumerBanking
   tag: latest

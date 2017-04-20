@@ -1,4 +1,4 @@
----
+--- 
 - hosts: Localhost
   vars_files:
     - "{{ playbook_dir }}/vars/{{ ENVIRONMENT }}/environment_common.yml"
