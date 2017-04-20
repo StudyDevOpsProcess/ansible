@@ -2,12 +2,12 @@
 #
 # Import global and per-service configuration for a specific environment
 #
-- include_vars: "{{ playbook_dir }}/vars/{{ GXI_ENVIRONMENT }}/environment_common.yml"
-- include_vars: "{{ playbook_dir }}/vars/{{ GXI_ENVIRONMENT }}/{{ service_name }}.yml"
+#- include_vars: "{{ playbook_dir }}/vars/{{ ENVIRONMENT }}/environment_common.yml"
+- include_vars: "{{ playbook_dir }}/vars/{{ ENVIRONMENT }}/{{ service_name }}.yml"
 - include_vars: /opt/ansible-cred/cred.yml
 
 - debug:
-    msg: "************ Deploying {{ service_name }} to {% filter upper %}{{ GXI_ENVIRONMENT }}{% endfilter %} ************"
+    msg: "************ Deploying {{ service_name }} to {% filter upper %}{{ ENVIRONMENT }}{% endfilter %} ************"
 
 # Login to artifactory
 - name: Docker login
